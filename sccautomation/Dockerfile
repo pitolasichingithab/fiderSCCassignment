@@ -1,12 +1,14 @@
 # Stage 1: Build
 FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.25-bookworm AS builder
 WORKDIR /app
-COPY . .
+COPY go.mod go.sum ./
 RUN go mod download
+COPY . .
+RUN mkdir -p /app/dist
 RUN go build -o fider-bin ./main.go
 
 # Stage 2: Runtime (Staging Environment)
-FROM alpine:latest
+FROM --platform=${TARGETPLATFORM:-linux/amd64} debian:bookworm-slim AS runtime
 WORKDIR /root/
 # Copy the binary from the builder stage
 COPY --from=builder /app/fider-bin .
