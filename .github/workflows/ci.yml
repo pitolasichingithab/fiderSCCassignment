@@ -1,0 +1,49 @@
+name: Fider SCC CI Pipeline
+
+on:
+  push:
+    branches: [ main, 'features/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    
+    services:
+      db:
+        image: postgres:14
+        env:
+          POSTGRES_USER: fider
+          POSTGRES_DB: fider_test
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go & Node
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # This runs Tests, Compiles, and Packages in one go!
+      - name: Run Build Automation (Task 1 & 2)
+        run: ./gradlew packageApp
+
+      - name: Build Docker Image (Task 3)
+        run: docker build -t fider-scc:${{ github.sha }} .
+
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            report.xml
+            coverage.out
