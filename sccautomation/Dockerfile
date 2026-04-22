@@ -1,6 +1,5 @@
 # Stage 1: Build
-FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.25-bookworm AS builder
- builder
+FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.25-bookworm AS server-builder
 WORKDIR /app
 COPY . .
 RUN go mod download
