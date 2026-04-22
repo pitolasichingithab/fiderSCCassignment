@@ -34,16 +34,16 @@ jobs:
 
       # FIX 1: Point to the correct folder for permissions
       - name: Grant execute permission for gradlew
-        run: chmod +x scc-automation/gradlew
+        run: chmod +x sccautomation/gradlew
 
       # FIX 2: Run Gradle from the subfolder using -p (project-dir)
       # Also pointed -b to your specific build file
       - name: Run Build Automation (Task 1 & 2)
-        run: ./scc-automation/gradlew -p scc-automation -b scc-automation/build.gradle packageApp
+        run: ./sccautomation/gradlew -p sccautomation -b sccautomation/build.gradle packageApp
 
       # FIX 3: Point Docker to your custom Dockerfile
       - name: Build Docker Image (Task 3)
-        run: docker build -t fider-scc:${{ github.sha }} -f scc-automation/scc.Dockerfile .
+        run: docker build -t fider-scc:${{ github.sha }} -f sccautomation/scc.Dockerfile .
 
       - name: Upload Test Reports
         uses: actions/upload-artifact@v4
