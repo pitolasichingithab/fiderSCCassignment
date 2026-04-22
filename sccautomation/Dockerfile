@@ -1,5 +1,6 @@
 # Stage 1: Build
-FROM golang:1.25-alpine AS builder
+FROM --platform=${TARGETPLATFORM:-linux/amd64} golang:1.25-bookworm AS builder
+ builder
 WORKDIR /app
 COPY . .
 RUN go mod download
