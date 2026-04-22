@@ -51,9 +51,10 @@ task copyResources(type: Copy) {
 }
 
 // Task to create a zip archive of the project
-task createZip(type: Zip) {
+task packageApp(type: Zip) {
+    dependsOn BuildJar
     from 'build'
-    archiveFileName = 'project-name.zip'
-    destinationDirectory = file('build/distributions')
+    archiveFileName = 'fider-package.zip'
+    destinationDirectory = file('build/dist')
 }
 
