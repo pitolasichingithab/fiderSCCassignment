@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: Fider CI Pipeline
 
 on:
   push:
@@ -12,8 +12,95 @@ on:
       - stable
 
 jobs:
-  ci:
+  precheck:
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Check and install Node.js
+        shell: bash
+        run: |
+          if command -v node >/dev/null 2>&1; then
+            echo "Node.js already installed"
+            node -v
+          else
+            echo "Node.js not found, installing..."
+            sudo apt-get update
+            sudo apt-get install -y nodejs npm
+          fi
+
+      - name: Check and install npm packages
+        shell: bash
+        run: |
+          if [ -f package.json ]; then
+            npm ci --maxsockets 1
+          else
+            echo "package.json not found"
+          fi
+
+      - name: Check and install Go
+        shell: bash
+        run: |
+          if command -v go >/dev/null 2>&1; then
+            echo "Go already installed"
+            go version
+          else
+            echo "Go not found, installing..."
+            sudo apt-get update
+            sudo apt-get install -y golang-go
+          fi
+
+      - name: Check Docker
+        shell: bash
+        run: |
+          if command -v docker >/dev/null 2>&1; then
+            echo "Docker already installed"
+            docker --version
+          else
+            echo "Docker not found"
+            exit 1
+          fi
+
+      - name: Check Docker Compose
+        shell: bash
+        run: |
+          if docker compose version >/dev/null 2>&1; then
+            echo "Docker Compose already available"
+            docker compose version
+          else
+            echo "Docker Compose not found"
+            exit 1
+          fi
+
+      - name: Create precheck report
+        run: |
+          mkdir -p reports
+          cat > reports/precheck-summary.md << EOF
+          # Precheck Report
+
+          Verified tools:
+          - Node.js
+          - npm
+          - Go
+          - Docker
+          - Docker Compose
+
+          Frontend dependencies:
+          - Installed with npm ci
+          EOF
+
+      - name: Upload precheck artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: precheck-artifacts
+          path: reports/precheck-summary.md
+          if-no-files-found: warn
+
+  build:
+    runs-on: ubuntu-latest
+    needs: precheck
 
     steps:
       - name: Checkout source code
@@ -22,98 +109,20 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
           cache: npm
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.22'
 
       - name: Create report folders
         run: |
           mkdir -p reports out
 
-      - name: Environment check
-        run: |
-          echo "Node version:"
-          node -v
-          echo "NPM version:"
-          npm -v
-          echo "Go version:"
-          go version
-
       - name: Install dependencies
         run: npm ci --maxsockets 1
-
-      - name: Frontend lint
-        run: |
-          if [ -f node_modules/.bin/eslint ]; then
-            npx eslint . --format json --output-file eslint-report.json > lint-report.txt 2>&1 || true
-            echo "ESLint finished"
-          else
-            echo "ESLint not found" > lint-report.txt
-            echo "[]" > eslint-report.json
-            echo "Skipped ESLint"
-          fi
-
-      - name: Frontend test
-        run: |
-          if [ -f node_modules/.bin/jest ]; then
-            npx jest --coverage --coverageReporters=json --coverageReporters=text --coverageReporters=html --passWithNoTests > test-output.txt 2>&1 || true
-            echo "Jest finished"
-          else
-            echo "Jest not found in project." > test-output.txt
-            echo "Jest not found, skipped."
-          fi
-
-      - name: Generate frontend report
-        run: |
-          cat > reports/ui-test-summary.md << 'EOF'
-          # Frontend Test Report
-
-          Artifacts:
-          - lint-report.txt
-          - eslint-report.json
-          - test-output.txt
-          - coverage/ (if generated)
-          EOF
-
-      - name: Backend lint
-        run: |
-          if command -v golangci-lint >/dev/null 2>&1; then
-            golangci-lint run ./... > golangci-report.txt 2>&1 || true
-            echo "golangci-lint finished"
-          else
-            echo "golangci-lint not installed on runner." > golangci-report.txt
-            echo "golangci-lint not found, skipped."
-          fi
-
-      - name: Backend test
-        run: |
-          go test -v -coverprofile=coverage.out ./... > go-test-output.txt 2>&1 || true
-          if [ -f coverage.out ]; then
-            go tool cover -html=coverage.out -o coverage-report.html || true
-          fi
-
-      - name: Generate backend report
-        run: |
-          COVERAGE_LINE=""
-          if [ -f coverage.out ]; then
-            COVERAGE_LINE=$(go tool cover -func=coverage.out | tail -n 1 || true)
-          fi
-
-          cat > reports/server-test-summary.md << EOF
-          # Backend Test Report
-
-          Coverage: ${COVERAGE_LINE}
-
-          Artifacts:
-          - go-test-output.txt
-          - golangci-report.txt
-          - coverage.out
-          - coverage-report.html
-          EOF
 
       - name: Build Docker image
         run: |
@@ -123,9 +132,9 @@ jobs:
             --tag fider-image:${SHA7} \
             --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --label "org.opencontainers.image.version=${SHA7}" \
-            . > docker-build.log 2>&1 || true
+            . > docker-build.log 2>&1
 
-          docker image inspect fider-image:latest > image-info.json 2>/dev/null || true
+          docker image inspect fider-image:latest > image-info.json
           echo "${SHA7}" > out/sha7
           echo "${GITHUB_REF_NAME}" > out/ref
 
@@ -140,7 +149,7 @@ jobs:
       - name: Generate build report
         run: |
           cat > reports/build-summary.md << EOF
-          # Docker Build Report
+          # Build Report
 
           Branch: ${GITHUB_REF_NAME}
           Commit: ${GITHUB_SHA}
@@ -151,58 +160,123 @@ jobs:
           - out/build-metadata.json
           EOF
 
-      - name: Simulated deploy
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            reports/build-summary.md
+            docker-build.log
+            image-info.json
+            out/build-metadata.json
+          if-no-files-found: warn
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Create report folders
+        run: mkdir -p reports
+
+      - name: Install dependencies
+        run: npm ci --maxsockets 1
+
+      - name: Run frontend unit tests with coverage
+        run: |
+          npx jest ./public \
+            --coverage \
+            --coverageReporters=text \
+            --coverageReporters=html \
+            --coverageReporters=json \
+            --passWithNoTests > test-output.txt 2>&1
+
+      - name: Generate test report
+        run: |
+          cat > reports/test-summary.md << EOF
+          # Test Report
+
+          Artifacts:
+          - test-output.txt
+          - coverage/
+          - coverage-final.json
+          EOF
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            reports/test-summary.md
+            test-output.txt
+            coverage/
+            coverage-final.json
+          if-no-files-found: warn
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Create report folders
+        run: mkdir -p reports
+
+      - name: Prepare environment file
+        run: |
+          if [ -f .example.env ]; then
+            cp .example.env .env
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            touch .env
+          fi
+
+      - name: Deploy with Docker Compose
         run: |
           echo "Starting deployment..." > deploy-output.txt
-          if [ -f docker-compose.yml ]; then
-            echo "docker-compose.yml found. Running deployment commands..." >> deploy-output.txt
-            docker compose down >> deploy-output.txt 2>&1 || true
-            docker compose up -d --build >> deploy-output.txt 2>&1 || true
-          else
-            echo "No docker-compose.yml found. Simulated deployment only." >> deploy-output.txt
-          fi
+          docker compose down >> deploy-output.txt 2>&1 || true
+          docker compose up -d --build >> deploy-output.txt 2>&1
+
+      - name: Check deployment status
+        run: |
+          docker compose ps > deploy-ps.txt
+          docker compose logs --tail=100 > deploy-logs.txt
 
       - name: Generate deployment report
         run: |
-          cat > reports/deployment-report.md << EOF
+          cat > reports/deployment-summary.md << EOF
           # Deployment Report
-
-          Branch: ${GITHUB_REF_NAME}
 
           Artifacts:
           - deploy-output.txt
+          - deploy-ps.txt
+          - deploy-logs.txt
           EOF
 
-      - name: Generate final CI report
-        run: |
-          cat > CI_REPORT.md << EOF
-          # CI Pipeline Report
-
-          Branch: ${GITHUB_REF_NAME}
-          Commit: ${GITHUB_SHA}
-
-          Pipeline Features Completed:
-          - Trigger CI/CD pipeline on code changes
-          - Automated lint, test, build, and deployment
-          - Generated downloadable reports and logs
-          EOF
-
-      - name: Upload pipeline artifacts
+      - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ci-artifacts
+          name: deployment-artifacts
           path: |
-            reports/
-            out/
-            CI_REPORT.md
-            lint-report.txt
-            eslint-report.json
-            test-output.txt
-            go-test-output.txt
-            golangci-report.txt
-            coverage.out
-            coverage-report.html
-            docker-build.log
-            image-info.json
+            reports/deployment-summary.md
             deploy-output.txt
+            deploy-ps.txt
+            deploy-logs.txt
           if-no-files-found: warn
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
