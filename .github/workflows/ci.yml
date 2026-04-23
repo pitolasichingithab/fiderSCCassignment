@@ -69,5 +69,5 @@ jobs:
           name: test-reports
           path: |
             sccautomation/build/reports/build-report.txt
-            sccautomation/build/reports/coverage.outtatu
-            sccautomation/build/dist/fider-application.zip
+            sccautomation/build/reports/coverage.out
+            build/dist/fider-application.zip

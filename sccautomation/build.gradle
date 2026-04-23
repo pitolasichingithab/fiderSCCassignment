@@ -149,11 +149,73 @@ task generateReport () {
     // ======== Task Implementation ========
     doLast {
         println "=== [4/5] Generating Build Report ==="
-        reportFile.text = "Build Report - ${new Date()}\n"
-        reportFile.append("Prerequisites Check  : PASSED\n")
-        reportFile.append("Dependencies Resolved: PASSED\n")
-        reportFile.append("Source Code Compiled : PASSED\n")
-        reportFile.append("Application Packaged : PASSED\n")
+        reportFile.parentFile.mkdirs()
+
+        def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+        def commandOutput = { String command ->
+            try {
+                def process = isWindows ? ["cmd", "/c", command].execute(null, file('..')) : command.execute(null, file('..'))
+                process.waitFor()
+                return process.exitValue() == 0 ? process.text.trim() : 'Unavailable'
+            } catch (IOException ignored) {
+                return 'Unavailable'
+            }
+        }
+
+        def projectName = file('..').name
+        def buildTimestamp = new Date().format('yyyy-MM-dd HH:mm:ss Z')
+        def javaVersion = System.getProperty('java.version')
+        def nodeVersion = commandOutput('node -v')
+        def goVersion = commandOutput('go version')
+        def dependenciesCommand = 'npm install'
+        def compileCommand = isWindows ? 'go build -o build/fider.exe .' : 'go build -o build/fider .'
+        def packageFile = file('../build/dist/fider-application.zip')
+        def executablePath = isWindows ? '../build/fider.exe' : '../build/fider'
+
+        def report = new StringBuilder()
+        report << '=======\n'
+        report << 'Build Report Title\n'
+        report << '=======\n\n'
+
+        report << 'Build Information\n'
+        report << '----\n'
+        report << "Project Name    : ${projectName}\n"
+        report << "Build Tool      : Gradlew / Gradle 9.4.1\n"
+        report << "Build Timestamp : ${buildTimestamp}\n"
+        report << 'Build Status    : PASS\n\n'
+
+        report << 'Environment\n'
+        report << '----\n'
+        report << "Operating System : ${System.getProperty('os.name')}\n"
+        report << "Java Version     : ${javaVersion}\n"
+        report << "Node Version     : ${nodeVersion}\n"
+        report << "Go Version       : ${goVersion}\n\n"
+
+        report << 'Build Tasks\n'
+        report << '----\n'
+        report << '[0] checkPrerequisites   : PASS\n'
+        report << '[1] resolveDependencies  : PASS\n'
+        report << '[2] compileSourceCode    : PASS\n'
+        report << '[3] packageApp           : PASS\n'
+        report << '[4] generateReport       : PASS\n\n'
+
+        report << 'Resolve Dependencies\n'
+        report << '----\n'
+        report << "Command           : ${dependenciesCommand}\n"
+        report << "Working Directory  : ${file('..').path}\n\n"
+
+        report << 'Compile Codes\n'
+        report << '----\n'
+        report << "Command           : ${compileCommand}\n"
+        report << "Working Directory  : ${file('..').path}\n\n"
+
+        report << 'Package Output\n'
+        report << '----\n'
+        report << "Archive File      : ${packageFile.path}\n"
+        report << "Executable File   : ${file(executablePath).path}\n"
+
+        reportFile.text = report.toString()
+        println report.toString()
         println "Build report generated at ${reportFile.path}"
     }
     // =====================================
