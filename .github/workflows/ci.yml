@@ -32,16 +32,21 @@ jobs:
         with:
           node-version: '20'
 
-      # FIX 1: Point to the correct folder for permissions
+      # STEP 1: Point to the correct folder for permissions
       - name: Grant execute permission for gradlew
         run: chmod +x sccautomation/gradlew
 
-      # FIX 2: Run Gradle from the subfolder using -p (project-dir)
+      # STEP 2: Run Gradle from the subfolder using -p (project-dir)
       # Also pointed -b to your specific build file
-      - name: Run Build Automation (Task 1 & 2)
+      - name: Run Build Automation
+        run: ./sccautomation/gradlew -p sccautomation checkPrerequisites
+        run: ./sccautomation/gradlew -p sccautomation resolveDependencies
+        run: ./sccautomation/gradlew -p sccautomation compileSourceCode
         run: ./sccautomation/gradlew -p sccautomation packageApp
+        run: ./sccautomation/gradlew -p sccautomation generateReport
+        run: ./sccautomation/gradlew -p sccautomation validateBuild
 
-      # FIX 3: Point Docker to your custom Dockerfile
+      # STEP 3: Point Docker to your custom Dockerfile
       - name: Build Docker Image (Task 3)
         run: docker build -t fider-scc:${{ github.sha }} -f sccautomation/Dockerfile .
 
