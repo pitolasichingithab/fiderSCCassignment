@@ -73,20 +73,16 @@ pipeline {
                 echo '========== Frontend Test =========='
                 powershell '''
                     if (Test-Path "node_modules\\.bin\\jest.cmd") {
-                        npx jest --coverage --passWithNoTests 2>&1 | Tee-Object -FilePath test-output.txt
-                        Write-Host "Tests finished (errors allowed)"
+                        npx jest --coverage --coverageReporters=json --coverageReporters=text --coverageReporters=html --passWithNoTests 2>&1 | Tee-Object -FilePath test-output.txt
+                        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
                     } else {
-                        "Jest not found" | Out-File test-output.txt
-                        Write-Host "Skipped tests"
+                        "Jest not found in project." | Out-File test-output.txt
+                        Write-Host "Jest not found, skipped."
                     }
                 '''
             }
         }
-            post {
-                always {
-                    powershell '''
-                        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                        $content = @"
+
 # Frontend Test Report
 
 Timestamp: $timestamp
