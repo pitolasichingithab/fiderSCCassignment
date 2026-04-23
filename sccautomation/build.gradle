@@ -62,13 +62,15 @@ task checkPrerequisites () {
             }
         }
         // Check for v8.h header file (required for Go bindings) )
-        def findv8 = "find /usr/include -name 'v8.h'".execute() 
-        findv8.waitFor()
-        def v8Path = findv8.text.readLines().find { it.contains("v8.h") }
-        if (!v8Path) {
+        def v8Header = file('/usr/include/v8/v8.h')
+        if (!v8Header.exists()) {
+            def nodeHeader = file('/usr/include/node/v8.h')
+            if (nodeHeader.exists()){
+                println "Status: v8.h exists in Node dir but the /usr/include/v8 link is MISSING."
+            }
             throw new GradleException("v8.h header file is not found. Please run sudo ln -s /usr/include/node /usr/include/v8")
         } else {
-            println "v8.h header found directory: ${v8Path}"
+            println "v8.h header found directory: ${v8Header.absolutePath}"
         }
         println "Prequisites check PASSED"
     }
