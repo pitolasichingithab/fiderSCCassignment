@@ -127,6 +127,12 @@ task packageApp(type: Zip) {
         include 'config/**'  // Include configuration files
         include 'README.md'  // Include README file
     }
+
+    from('../') {
+        include 'public/**'   // CSS, JS, Images
+        include 'views/**'    // HTML Templates
+        include 'config.example.json'
+    }
     // =====================================
     // ======== Task Implementation ========
     doLast {
