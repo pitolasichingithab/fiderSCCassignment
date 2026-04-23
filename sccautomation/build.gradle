@@ -24,7 +24,7 @@ repositories {
 task checkPrerequisites () {
     // ========= Task Description ==========
     group = 'build'
-    description = 'Verify GO, Node.js (npm) and pnpm are available in the system PATH.'
+    description = 'Verify Go, Node.js and npm are available in the system PATH.'
     // =====================================
     // ====== Variables and Constants ======
     // Check if the operating system is Windows
@@ -59,19 +59,16 @@ task checkPrerequisites () {
 }
 
 task resolveDependencies() {
+    dependsOn checkPrerequisites
     // ========= Task Description ==========
     group = 'build'
-    description = 'Resolve project dependencies using pnpm.'
-    // =====================================
-    // ====== Variables and Constants ======
-    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-    def npmCmd = 'npm install'
+    description = 'Resolve project dependencies using npm.'
     // =====================================
     // ======== Task Implementation ========
     doLast {
         println "=== [1/5] Resolving Dependencies ==="
         try {
-            def process = npmCmd.execute(null, file('..'))
+            def process = 'npm install'.execute(null, file('..'))
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw new GradleException("Failed to resolve dependencies using npm.")
@@ -86,6 +83,7 @@ task resolveDependencies() {
 }
 
 task compileSourceCode () {
+    dependsOn resolveDependencies
     // ========= Task Description ==========
     group = 'build'
     description = 'Compile the source code using Go.'
@@ -113,24 +111,24 @@ task compileSourceCode () {
 }
 
 task packageApp(type: Zip) {
+    dependsOn compileSourceCode
     // ========= Task Description ==========
     group = 'build'
     description = 'Package the compiled application and necessary files into a zip archive.'
     // =====================================
     // ====== Variables and Constants ======
     def outputDir = '../build/dist'
-    def archiveFileName = 'fider-application.zip'
+    archiveFileName = 'fider-application.zip'
+    destinationDirectory = file(outputDir)
+    from('../build') {
+        include 'fider*'  // Include the compiled application
+        include 'config/**'  // Include configuration files
+        include 'README.md'  // Include README file
+    }
     // =====================================
     // ======== Task Implementation ========
     doLast {
         println "=== [3/5] Packaging Application ==="
-        from('../build') {
-            include 'fider*'  // Include the compiled application
-            include 'config/**'  // Include configuration files
-            include 'README.md'  // Include README file
-        }
-        archiveFileName = archiveFileName
-        destinationDirectory = file(outputDir)
         println "Packaged Application : PASSED"
     }
     // =====================================
@@ -138,6 +136,7 @@ task packageApp(type: Zip) {
 }
 
 task generateReport () {
+    dependsOn packageApp
     // ========= Task Description ==========
     group = 'build'
     description = 'Generate a build report summarizing the build process and results.'
@@ -160,6 +159,7 @@ task generateReport () {
 }
 
 task validateBuild() {
+    dependsOn generateReport
     // ========= Task Description ==========
     group = 'build'
     description = 'Validate the build by running tests and checking the packaged application.'
