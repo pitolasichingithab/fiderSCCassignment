@@ -21,7 +21,7 @@ repositories {
     testImplementation 'junit:junit:4.13.2'
 }
 
-task checkPrerequisites (type: Exec) {
+task checkPrerequisites () {
     // ========= Task Description ==========
     group = 'build'
     description = 'Verify GO, Node.js (npm) and pnpm are available in the system PATH.'
@@ -59,7 +59,7 @@ task checkPrerequisites (type: Exec) {
     // =====================================
 }
 
-task resolveDependencies(type: Exec) {
+task resolveDependencies() {
     // ========= Task Description ==========
     group = 'build'
     description = 'Resolve project dependencies using pnpm.'
@@ -86,7 +86,7 @@ task resolveDependencies(type: Exec) {
     // =====================================
 }
 
-task compileSourceCode (type: Exec) {
+task compileSourceCode () {
     // ========= Task Description ==========
     group = 'build'
     description = 'Compile the source code using Go.'
@@ -138,7 +138,7 @@ task packageApp(type: Zip) {
 
 }
 
-task generateReport (type: Exec) {
+task generateReport () {
     // ========= Task Description ==========
     group = 'build'
     description = 'Generate a build report summarizing the build process and results.'
@@ -160,7 +160,7 @@ task generateReport (type: Exec) {
 
 }
 
-task validateBuild(type: DefaultTask) {
+task validateBuild() {
     // ========= Task Description ==========
     group = 'build'
     description = 'Validate the build by running tests and checking the packaged application.'
