@@ -52,7 +52,10 @@ jobs:
 
       - name: generate Build Reports
         run: ./sccautomation/gradlew -p sccautomation generateReport
-        
+
+      - name: generate Code Coverage
+        run: ./sccautomation/gradlew -p sccautomation generateCoverage
+
       - name: Validate Build (Task 5)
         run: ./sccautomation/gradlew -p sccautomation validateBuild
 
@@ -65,5 +68,6 @@ jobs:
         with:
           name: test-reports
           path: |
-            scc-report.xml
-            scc-coverage.out
+            sccautomation/build/reports/build-report.txt
+            sccautomation/build/reports/coverage.outtatu
+            sccautomation/build/dist/fider-application.zip

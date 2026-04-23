@@ -50,7 +50,7 @@ task checkPrerequisites () {
                     printf "%-10s: %s\n", dependency.name, process.text.trim()
                 }
             } catch (IOException e) {
-                throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
+                throw new GradleException("Ran into an error while checking ${dependency.name}. Is it installed properly?")
             }
         }
         println "Prequisites check PASSED"
@@ -160,6 +160,46 @@ task generateReport () {
 
 }
 
+task generateCoverage() {
+    dependsOn compileSourceCode // We want to make sure it compiles before testing
+    group = 'verification'
+    description = 'Run Go tests and generate a code coverage report.'
+    
+    def coverageFile = file('build/reports/coverage.out')
+    
+    doLast {
+        println "=== [Bonus] Generating Code Coverage ==="
+        // Ensure the directory exists
+        coverageFile.parentFile.mkdirs()
+        
+        try {
+            // Run go test with coverage flag
+            // -coverprofile saves the detailed stats to a file
+            def process = isWindows ? 
+                "cmd /c go test -coverprofile=${coverageFile.path} ./...".execute(null, file('..')) : 
+                "go test -coverprofile=${coverageFile.path} ./...".execute(null, file('..'))
+            
+            process.consumeProcessOutput(System.out, System.err)
+            process.waitFor()
+            
+            if (process.exitValue() != 0) {
+                println "Warning: Some tests failed, but coverage was still attempted."
+            }
+            
+            // Optional: Print a summary to the console
+            def summaryProcess = isWindows ? 
+                "cmd /c go tool cover -func=${coverageFile.path}".execute() : 
+                "go tool cover -func=${coverageFile.path}".execute()
+            
+            println summaryProcess.text
+            println "Coverage report generated at ${coverageFile.path}"
+            
+        } catch (Exception e) {
+            println "Could not generate coverage: ${e.message}"
+        }
+    }
+}
+
 task validateBuild() {
     dependsOn generateReport
     // ========= Task Description ==========
@@ -198,8 +238,3 @@ task validateBuild() {
     // =====================================
 
 }
-
-
-
-
-
