@@ -53,7 +53,7 @@ func TestReactRenderer_RenderEmptyHomeHTML(t *testing.T) {
 	})
 	Expect(html).ContainsSubstring(`<div class="c-dev-banner">DEV</div>`)
 	Expect(html).ContainsSubstring(`<button class="p-home__add-idea-btn">`)
-	Expect(html).ContainsSubstring(`Enter your suggestion here...`)
+	Expect(html).ContainsSubstring(`Share your feedback and ideas here...`)
 	Expect(html).ContainsSubstring(`What can we do better? This is the place for you to vote, discuss and share ideas.`)
 	Expect(html).ContainsSubstring(`No posts have been created yet.`)
 	Expect(html).ContainsSubstring(`Powered by Fider`)
