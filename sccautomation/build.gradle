@@ -24,7 +24,7 @@ repositories {
 task checkPrerequisites () {
     // ========= Task Description ==========
     group = 'build'
-    description = 'Verify Go, Node.js and npm are available in the system PATH.'
+    description = 'Verify Go, Node.js, npm, Make, and Zip are available in the WSL system.'
     // =====================================
     // ====== Variables and Constants ======
     // Check if the operating system is Windows
@@ -32,26 +32,43 @@ task checkPrerequisites () {
 
     // List of commands to check for required dependencies
     def checkVersionList = [
-        [cmd: 'go version', winCmd: 'go version',   name: 'Go',     url: 'https://go.dev/dl/'],
-        [cmd: 'node -v',    winCmd: 'node -v',      name: 'Node',   url: 'https://nodejs.org/'],
-        [cmd: 'npm -v',     winCmd: 'npm -v',       name: 'npm',    url: 'https://www.npmjs.com/get-npm'],
+        [cmd: 'go version',       name: 'Go',     install: 'sudo apt install golang-go'],
+        [cmd: 'node -v',          name: 'Node',   install: 'sudo apt install nodejs npm'],
+        [cmd: 'npm -v',           name: 'npm',    install: 'sudo apt install nodejs npm'],
+        [cmd: 'zip -v',           name: 'Zip',    install: 'sudo apt install zip unzip'],
+        [cmd: 'gradle -v',        name: 'Gradle', install: 'sdk install gradle 9.4.1'],
+        [cmd: 'make --version',   name: 'Make',   install: 'sudo apt install build-essential']
     ]
     // =====================================
     // ======== Task Implementation ========
     doLast {
         println "=== [0/5] Checking Prerequisites ==="
+        if (isWindows) {
+            throw new GradleException("Windows OS is not supported. Please use a Unix-like system (WSL) to run this build script.")
+        } else {
+            println("OS       : ${System.getProperty('os.name')}")
+        }
         checkVersionList.each { dependency ->
             try {
-                def process = isWindows ? dependency.winCmd.execute() : dependency.cmd.execute()
+                def process = dependency.cmd.execute()
                 process.waitFor()
                 if (process.exitValue() != 0) {
-                    throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
+                    throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.install}")
                 } else {
                     printf "%-10s: %s\n", dependency.name, process.text.trim()
                 }
             } catch (IOException e) {
                 throw new GradleException("Ran into an error while checking ${dependency.name}. Is it installed properly?")
             }
+        }
+        // Check for v8.h header file (required for Go bindings) )
+        def findv8 = "find /usr/include -name 'v8.h'".execute() 
+        findv8.waitFor()
+        def v8Path = findv8.text.readLines().find { it.contains("v8.h") }
+        if (!v8Path) {
+            throw new GradleException("v8.h header file is not found. Please run sudo ln -s /usr/include/node /usr/include/v8")
+        } else {
+            println "v8.h header found directory: ${v8Path}"
         }
         println "Prequisites check PASSED"
     }
@@ -89,26 +106,16 @@ task compileSourceCode () {
     group = 'build'
     description = 'Compile the source code using Go.'
     // =====================================
-    // ====== Variables and Constants ======
-    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-    // =====================================
     // ======== Task Implementation ========
     doLast {
         println "=== [2/5] Compiling Source Code ==="
-        try {
-            def process = isWindows ? 
-                // Force Windows 64-bit architecture
-                "cmd /c set GOOS=windows&& set GOARCH=amd64&& go build -o build/fider.exe .".execute(null, file('..')) : 
-                "go build -o build/fider .".execute(null, file('..'))
-            process.consumeProcessOutput(System.out, System.err)
-            process.waitFor()
-            if (process.exitValue() != 0) {
-                throw new GradleException("Failed to compile source code using Go.")
-            } else {
-                println "Source Code Compiled : PASSED"
-            }
-        } catch (IOException e) {
-            throw new GradleException("Failed to execute Go command. Ensure Go is installed and available in PATH.")
+        exec {
+            environment "CGO_ENABLED", "1"
+            environment "CGO_CFLAGS", "-I/usr/include/v8"
+            environment "CGO_LDFLAGS", "-lv8 -lstdc++"
+        
+            workingDir '..'
+            commandLine 'go', 'build', '-v', '-o', 'build/fider', '.'     
         }
     }
     // =====================================
@@ -159,10 +166,9 @@ task generateReport () {
         println "=== [4/5] Generating Build Report ==="
         reportFile.parentFile.mkdirs()
 
-        def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
         def commandOutput = { String command ->
             try {
-                def process = isWindows ? ["cmd", "/c", command].execute(null, file('..')) : command.execute(null, file('..'))
+                def process = command.execute(null, file('..'))
                 process.waitFor()
                 return process.exitValue() == 0 ? process.text.trim() : 'Unavailable'
             } catch (IOException ignored) {
@@ -176,9 +182,9 @@ task generateReport () {
         def nodeVersion = commandOutput('node -v')
         def goVersion = commandOutput('go version')
         def dependenciesCommand = 'npm install'
-        def compileCommand = isWindows ? 'go build -o build/fider.exe .' : 'go build -o build/fider .'
+        def compileCommand = 'go build -o build/fider .'
         def packageFile = file('../build/dist/fider-application.zip')
-        def executablePath = isWindows ? '../build/fider.exe' : '../build/fider'
+        def executablePath = '../build/fider'
 
         def report = new StringBuilder()
         report << '=======\n'
@@ -237,8 +243,7 @@ task validateBuild() {
     description = 'Validate the build by running tests and checking the packaged application.'
     // =====================================
     // ====== Variables and Constants ======
-    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-    def executablePath = isWindows ? '../build/fider.exe' : '../build/fider'
+    def executablePath = '../build/fider'
     // =====================================
     // ======== Task Implementation ========
     doLast {
@@ -266,5 +271,95 @@ task validateBuild() {
         println "Build validation PASSED."
     }
     // =====================================
+}
 
+task backendTest(){
+    dependsOn compileSourceCode
+    // ========= Task Description ==========
+    group = 'verification'
+    description = 'Execute pre-made backend server tests.'
+    // =====================================
+    // ====== Task Implementation ======
+    doLast {
+        println "=== [1/x] Run server tests  ==="
+        exec {
+            workingDir '..'
+            commandLine 'make', 'test-server'
+        }
+    }
+}
+
+task frontendTest(){
+    // ========= Task Description ==========
+    group = 'verification'
+    description = 'Execute pre-made frontend ui tests.'
+    // =====================================
+    // ====== Task Implementation ======
+    doLast {
+        println "=== [2/x] Run ui tests  ==="
+        exec {
+            workingDir '..'
+            commandLine 'make', 'test-ui'
+        }
+    }
+}
+
+task testE2E(){
+    dependsOn frontendTest,backendTest
+    // ========= Task Description ==========
+    group = 'verification'
+    description = 'Execute end-to-end tests using Cypress.'
+    // =====================================
+    // ====== Task Implementation ======
+    doLast {
+        println "=== [3/x] Run full end-to-end tests (Cucumber)  ==="
+        exec {
+            workingDir '..'
+            commandLine 'make', 'test-e2e-server'
+        }
+        exec {
+            workingDir '..'
+            commandLine 'make', 'test-e2e-ui'
+        }
+    } 
+    // =====================================
+}
+
+task runAllTests(){
+    // ========= Task Description ==========
+    group = 'verification'
+    description = 'Run all tests: backend, frontend, and end-to-end.'
+    // =====================================
+    // ====== Task Implementation ======
+    doLast {
+        println "All tests executed. Check individual test tasks for results."
+    }
+}
+
+task measureCoverage {
+    // ========= Task Description ==========
+    group = 'verification'
+    description = 'Executes unit tests and measures code coverage.'
+    // =====================================
+    // Ensure a compiled binary before testing
+    dependsOn compileSourceCode
+    // ====== Task Implementation ======
+    doLast {
+        println "=== [1/3] Executing Unit Tests ==="
+        // triggers the Makefile target, it runs: go test -coverprofile=cover.out
+        exec {
+            workingDir '..'
+            commandLine 'make', 'coverage-server'
+        }
+
+        println "=== [2/3] Generating Coverage Report ==="
+        // Go generates a .out file, use the 'go tool' to turn it into a readable HTML report
+        exec {
+            workingDir '..'
+            commandLine 'go', 'tool', 'cover', '-html=cover.out', '-o', 'build/coverage_report.html'
+        }
+
+        println "=== [3/3] Final Deliverable: build/coverage_report.html ==="
+    }
+    // =====================================
 }

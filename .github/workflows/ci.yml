@@ -17,6 +17,11 @@ jobs:
           POSTGRES_USER: fider
           POSTGRES_DB: fider_test 
           POSTGRES_PASSWORD: fider 
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 5432:5432
 
@@ -31,37 +36,28 @@ jobs:
         with:
           node-version: '20'
 
-      # STEP 1: Point to the correct folder for permissions
-      - name: Grant execute permission for gradlew
-        run: chmod +x sccautomation/gradlew
+      - name: Install System Dependencies, Setup V8 Header
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnode-dev build-essential zip
+          sudo ln -s /usr/include/node /usr/include/v8   
 
-      # STEP 2: Run Gradle from the subfolder using -p (project-dir)
-      - name: Run Build Automation
-        run: ./sccautomation/gradlew -p sccautomation checkPrerequisites
+      - name: Grant gradlew permission     
+        run: chmod +x sccautomation/gradlew  
 
-      - name: Resolve Dependencies
-        run: ./sccautomation/gradlew -p sccautomation resolveDependencies
-
-      - name: Compile Source Code 
-        run: ./sccautomation/gradlew -p sccautomation compileSourceCode
-
-      - name: package Application
-        run: ./sccautomation/gradlew -p sccautomation packageApp
-
-      - name: generate Build Reports
-        run: ./sccautomation/gradlew -p sccautomation generateReport
-
-      - name: Validate Build (Task 5)
+      - name: Run Build Automation Pipeline
         run: ./sccautomation/gradlew -p sccautomation validateBuild
+        env:
+          DATABASE_URL: postgres://fider:fider@localhost:5432/fider_test?sslmode=disable
+          JWT_SECRET: ci_test_secret
 
-      # STEP 3: Point Docker to your custom Dockerfile
-      - name: Build Docker Image (Task 3)
+      - name: Build Docker Image
         run: docker build -t fider-scc:${{ github.sha }} -f sccautomation/Dockerfile .
 
-      - name: Upload Test Reports
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: fider-build-package
           path: |
             sccautomation/build/reports/build-report.txt
             build/dist/fider-application.zip
