@@ -91,13 +91,15 @@ task compileSourceCode () {
     // =====================================
     // ====== Variables and Constants ======
     def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-    def goCmd = isWindows ? 'go build -o build/fider.exe .' : 'go build -o build/fider .'
     // =====================================
     // ======== Task Implementation ========
     doLast {
         println "=== [2/5] Compiling Source Code ==="
         try {
-            def process = goCmd.execute(null, file('..'))
+            def process = isWindows ? 
+                // Force Windows 64-bit architecture
+                "cmd /c set GOOS=windows&& set GOARCH=amd64&& go build -o build/fider.exe .".execute(null, file('..')) : 
+                "go build -o build/fider .".execute(null, file('..'))
             process.consumeProcessOutput(System.out, System.err)
             process.waitFor()
             if (process.exitValue() != 0) {
