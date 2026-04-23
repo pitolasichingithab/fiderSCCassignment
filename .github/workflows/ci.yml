@@ -42,8 +42,8 @@ jobs:
           sudo apt-get install -y libnode-dev build-essential zip
           sudo rm -rf /usr/include/v8
           sudo mkdir -p /usr/include/v8
-          sudo ln -s /usr/include/node/* /usr/include/v8/
-          ls -l /usr/include/v8
+          sudo ln -s /usr/include/node /usr/include/v8
+          ls -l /usr/include/v8/v8.h
 
       - name: Grant gradlew permission     
         run: chmod +x sccautomation/gradlew  
