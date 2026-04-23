@@ -229,7 +229,10 @@ Artifacts:
 
         stage('Deploy') {
             when {
-                branch 'main'
+                anyOf {
+                    branch 'main'
+                    branch 'stable'
+                }
             }
             steps {
                 echo '========== Deploy =========='
