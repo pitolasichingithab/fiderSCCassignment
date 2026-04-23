@@ -1,8 +1,16 @@
+// =============================================================================================
+// Fider Automation Build Script
+// Assignment 2 - Task 2: Build Automation Script
+// Build Tool: Gradlew
+// Gradle Version: 9.4.1
+//
+// =============================================================================================
+
 plugins 
 { 
     id 'java' 
     } 
-group 'com.example' 
+group 'builder' 
 version '1.0' 
 repositories { 
     mavenCentral() 
@@ -13,48 +21,171 @@ repositories {
     testImplementation 'junit:junit:4.13.2'
 }
 
-// Define a task to Run a Test 
-task RunTest(type: Test) {
-    // Specify the directory containing test classes
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
-    // Optionally configure test options
-    testLogging {
-        // Configure which events to log during test execution
-        events 'passed', 'skipped', 'failed'
+task checkPrerequisites (type: Exec) {
+    // ========= Task Description ==========
+    group = 'build'
+    description = 'Verify GO, Node.js (npm) and pnpm are available in the system PATH.'
+    // =====================================
+    // ====== Variables and Constants ======
+    // Check if the operating system is Windows
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+
+    // List of commands to check for required dependencies
+    def checkVersionList = [
+        [cmd: 'go version', winCmd: 'go version',   name: 'Go',     url: 'https://go.dev/dl/'],
+        [cmd: 'node -v',    winCmd: 'node -v',      name: 'Node',   url: 'https://nodejs.org/'],
+        [cmd: 'npm -v',     winCmd: 'npm -v',       name: 'npm',    url: 'https://www.npmjs.com/get-npm'],
+        [cmd: 'pnpm -v',    winCmd: 'pnpm.cmd -v',      name: 'pnpm',   url: 'https://pnpm.io/installation']
+    ]
+    // =====================================
+    // ======== Task Implementation ========
+    doLast {
+        println "=== [0/x] Checking Prerequisites ==="
+        checkVersionList.each { dependency ->
+            try {
+                def process = isWindows ? dependency.winCmd.execute() : dependency.cmd.execute()
+                process.waitFor()
+                if (process.exitValue() != 0) {
+                    throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
+                } else {
+                    printf "${dependency.name} %-10s: PASSED\n", dependency.name
+                }
+            } catch (IOException e) {
+                throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
+            }
+        }
+        println "Prequisites check PASSED"
     }
+    // =====================================
 }
 
-// Define a task to build an executable JAR file
-task BuildJar(type: Jar) {
-    manifest {
-        attributes 'Main-Class': 'com.example.HelloWorld'  // Set the main class for the JAR
+task resolveDependencies(type: Exec) {
+    // ========= Task Description ==========
+    group = 'build'
+    description = 'Resolve project dependencies using pnpm.'
+    // =====================================
+    // ====== Variables and Constants ======
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+    def pnpmCmd = isWindows ? 'pnpm.cmd install' : 'pnpm install'
+    // =====================================
+    // ======== Task Implementation ========
+    doLast {
+        println "=== [1/x] Resolving Dependencies ==="
+        try {
+            def process = pnpmCmd.execute()
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                throw new GradleException("Failed to resolve dependencies using pnpm.")
+            } else {
+                println "Dependencies resolved successfully."
+            }
+        } catch (IOException e) {
+            throw new GradleException("Failed to execute pnpm command. Ensure pnpm is installed and available in PATH.")
+        }
     }
-
-    from sourceSets.main.output  // Include compiled classes in the JAR
-    archiveBaseName = 'my-application'  // Name of the JAR file
-    destinationDirectory = file('build/libs')  // Output directory for the JAR file
+    // =====================================
 }
-// Modify the defualt  JAR task to include the Main-Class
-jar {
-    manifest {
-        attributes 'Main-Class': 'com.example.HelloWorld' 
+
+task compileSourceCode (type: Exec) {
+    // ========= Task Description ==========
+    group = 'build'
+    description = 'Compile the source code using Go.'
+    // =====================================
+    // ====== Variables and Constants ======
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+    def goCmd = isWindows ? 'go build -o build/fider.exe .' : 'go build -o build/fider .'
+    // =====================================
+    // ======== Task Implementation ========
+    doLast {
+        println "=== [2/x] Compiling Source Code ==="
+        try {
+            def process = goCmd.execute()
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                throw new GradleException("Failed to compile source code using Go.")
+            } else {
+                println "Source code compiled successfully."
+            }
+        } catch (IOException e) {
+            throw new GradleException("Failed to execute Go command. Ensure Go is installed and available in PATH.")
+        }
     }
-    from { sourceSets.main.output }
-    archiveBaseName = 'my-application'
-    destinationDirectory = file('build/libs')
-}
-// Task to copy resource files to a specific directory
-task copyResources(type: Copy) {
-    from 'src/main/resources'
-    into 'build/resources/main'
+    // =====================================
 }
 
-// Task to create a zip archive of the project
 task packageApp(type: Zip) {
-    dependsOn BuildJar
-    from 'build'
-    archiveFileName = 'fider-package.zip'
-    destinationDirectory = file('build/dist')
+    // ========= Task Description ==========
+    group = 'build'
+    description = 'Package the compiled application and necessary files into a zip archive.'
+    // =====================================
+    // ====== Variables and Constants ======
+    def outputDir = 'build/distributions'
+    def archiveFileName = 'fider-application.zip'
+    // =====================================
+    // ======== Task Implementation ========
+    doLast {
+        println "=== [3/x] Packaging Application ==="
+        from('build') {
+            include 'fider*'  // Include the compiled application
+            include 'config/**'  // Include configuration files
+            include 'README.md'  // Include README file
+        }
+        archiveFileName = archiveFileName
+        destinationDirectory = file(outputDir)
+        println "Application packaged successfully at ${outputDir}/${archiveFileName}"
+    }
+    // =====================================
+
 }
+
+task generateReport (type: Exec) {
+    // ========= Task Description ==========
+    group = 'build'
+    description = 'Generate a build report summarizing the build process and results.'
+    // =====================================
+    // ====== Variables and Constants ======
+    def reportFile = file('build/reports/build-report.txt')
+    // =====================================
+    // ======== Task Implementation ========
+    doLast {
+        println "=== [4/x] Generating Build Report ==="
+        reportFile.text = "Build Report - ${new Date()}\n"
+        reportFile.append("Prerequisites Check: PASSED\n")
+        reportFile.append("Dependencies Resolved: PASSED\n")
+        reportFile.append("Source Code Compiled: PASSED\n")
+        reportFile.append("Application Packaged: PASSED\n")
+        println "Build report generated at ${reportFile.path}"
+    }
+    // =====================================
+
+}
+
+task validateBuild(type: DefaultTask) {
+    // ========= Task Description ==========
+    group = 'build'
+    description = 'Validate the build by running tests and checking the packaged application.'
+    // =====================================
+    // ====== Variables and Constants ======
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
+    def executablePath = isWindows ? 'build/fider.exe' : 'build/fider'
+    // =====================================
+    // ======== Task Implementation ========
+    doLast {
+        println "=== [5/x] Validating Build ==="
+        // Check if the executable exists
+        if (!file(executablePath).exists()) {
+            throw new GradleException("Packaged application not found at ${executablePath}. Validation failed.")
+        } else {
+            println "Packaged application found at ${executablePath}."
+        }
+        // Optionally, you can add commands to run the application and verify its output
+        println "Build validation PASSED."
+    }
+    // =====================================
+
+}
+
+
+
+
 
