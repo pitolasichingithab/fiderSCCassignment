@@ -40,10 +40,20 @@ jobs:
       # Also pointed -b to your specific build file
       - name: Run Build Automation
         run: ./sccautomation/gradlew -p sccautomation checkPrerequisites
+
+      - name: Resolve Dependencies
         run: ./sccautomation/gradlew -p sccautomation resolveDependencies
+
+      - name: Compile Source Code 
         run: ./sccautomation/gradlew -p sccautomation compileSourceCode
+
+      - name: package Application
         run: ./sccautomation/gradlew -p sccautomation packageApp
+
+      - name: generate Build Reports
         run: ./sccautomation/gradlew -p sccautomation generateReport
+        
+      - name: Validate Build (Task 5)
         run: ./sccautomation/gradlew -p sccautomation validateBuild
 
       # STEP 3: Point Docker to your custom Dockerfile
