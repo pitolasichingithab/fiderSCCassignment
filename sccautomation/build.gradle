@@ -39,7 +39,7 @@ task checkPrerequisites () {
     // =====================================
     // ======== Task Implementation ========
     doLast {
-        println "=== [0/x] Checking Prerequisites ==="
+        println "=== [0/5] Checking Prerequisites ==="
         checkVersionList.each { dependency ->
             try {
                 def process = isWindows ? dependency.winCmd.execute() : dependency.cmd.execute()
@@ -69,14 +69,14 @@ task resolveDependencies() {
     // =====================================
     // ======== Task Implementation ========
     doLast {
-        println "=== [1/x] Resolving Dependencies ==="
+        println "=== [1/5] Resolving Dependencies ==="
         try {
-            def process = npmCmd.execute()
+            def process = npmCmd.execute(null, file('..'))
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw new GradleException("Failed to resolve dependencies using npm.")
             } else {
-                println "Dependencies resolved successfully."
+                println "resolve Dependencies PASSED."
             }
         } catch (IOException e) {
             throw new GradleException("Failed to execute npm command. Ensure npm is installed and available in PATH.")
@@ -96,14 +96,14 @@ task compileSourceCode () {
     // =====================================
     // ======== Task Implementation ========
     doLast {
-        println "=== [2/x] Compiling Source Code ==="
+        println "=== [2/5] Compiling Source Code ==="
         try {
-            def process = goCmd.execute()
+            def process = goCmd.execute(null, file('..'))
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw new GradleException("Failed to compile source code using Go.")
             } else {
-                println "Source code compiled successfully."
+                println "Source Code Compiled : PASSED"
             }
         } catch (IOException e) {
             throw new GradleException("Failed to execute Go command. Ensure Go is installed and available in PATH.")
@@ -118,20 +118,20 @@ task packageApp(type: Zip) {
     description = 'Package the compiled application and necessary files into a zip archive.'
     // =====================================
     // ====== Variables and Constants ======
-    def outputDir = 'build/distributions'
+    def outputDir = '../build/dist'
     def archiveFileName = 'fider-application.zip'
     // =====================================
     // ======== Task Implementation ========
     doLast {
-        println "=== [3/x] Packaging Application ==="
-        from('build') {
+        println "=== [3/5] Packaging Application ==="
+        from('../build') {
             include 'fider*'  // Include the compiled application
             include 'config/**'  // Include configuration files
             include 'README.md'  // Include README file
         }
         archiveFileName = archiveFileName
         destinationDirectory = file(outputDir)
-        println "Application packaged successfully at ${outputDir}/${archiveFileName}"
+        println "Packaged Application : PASSED"
     }
     // =====================================
 
@@ -147,12 +147,12 @@ task generateReport () {
     // =====================================
     // ======== Task Implementation ========
     doLast {
-        println "=== [4/x] Generating Build Report ==="
+        println "=== [4/5] Generating Build Report ==="
         reportFile.text = "Build Report - ${new Date()}\n"
-        reportFile.append("Prerequisites Check: PASSED\n")
+        reportFile.append("Prerequisites Check  : PASSED\n")
         reportFile.append("Dependencies Resolved: PASSED\n")
-        reportFile.append("Source Code Compiled: PASSED\n")
-        reportFile.append("Application Packaged: PASSED\n")
+        reportFile.append("Source Code Compiled : PASSED\n")
+        reportFile.append("Application Packaged : PASSED\n")
         println "Build report generated at ${reportFile.path}"
     }
     // =====================================
@@ -166,18 +166,31 @@ task validateBuild() {
     // =====================================
     // ====== Variables and Constants ======
     def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-    def executablePath = isWindows ? 'build/fider.exe' : 'build/fider'
+    def executablePath = isWindows ? '../build/fider.exe' : '../build/fider'
     // =====================================
     // ======== Task Implementation ========
     doLast {
-        println "=== [5/x] Validating Build ==="
+        println "=== [5/5] Validating Build ==="
+        // Check if dist/ directory exists
+        def distDir = file('../build/dist')
+        if (!distDir.exists() || !distDir.isDirectory()) {
+            throw new GradleException("Distribution directory not found at ${distDir.path}. Validation failed.")
+        } else {
+            println "Distribution directory found at ${distDir.path}."
+        }
+        // Check zip file exists
+        def zipFile = file('../build/dist/fider-application.zip')
+        if (!zipFile.exists()) {
+            throw new GradleException("Packaged zip file not found at ${zipFile.path}. Validation failed.")
+        } else {
+            println "Packaged zip file found at ${zipFile.path}."
+        }
         // Check if the executable exists
         if (!file(executablePath).exists()) {
             throw new GradleException("Packaged application not found at ${executablePath}. Validation failed.")
         } else {
             println "Packaged application found at ${executablePath}."
         }
-        // Optionally, you can add commands to run the application and verify its output
         println "Build validation PASSED."
     }
     // =====================================
