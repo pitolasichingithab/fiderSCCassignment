@@ -102,7 +102,7 @@ task resolveDependencies() {
     // =====================================
 }
 
-task compileSourceCode () {
+task compileSourceCode {
     dependsOn resolveDependencies
     // ========= Task Description ==========
     group = 'build'
