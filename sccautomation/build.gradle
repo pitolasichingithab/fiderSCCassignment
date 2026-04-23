@@ -111,7 +111,7 @@ task compileSourceCode () {
     // ======== Task Implementation ========
     doLast {
         println "=== [2/5] Compiling Source Code ==="
-        exec {
+        project.exec {
             environment "CGO_ENABLED", "1"
             environment "CGO_CFLAGS", "-I/usr/include/v8"
             environment "CGO_LDFLAGS", "-lv8 -lstdc++"
