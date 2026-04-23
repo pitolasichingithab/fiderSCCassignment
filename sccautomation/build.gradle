@@ -102,23 +102,26 @@ task resolveDependencies() {
     // =====================================
 }
 
-task compileSourceCode {
+task compileSourceCode (type: Exec) {
     dependsOn resolveDependencies
     // ========= Task Description ==========
     group = 'build'
     description = 'Compile the source code using Go.'
     // =====================================
     // ======== Task Implementation ========
-    doLast {
-        println "=== [2/5] Compiling Source Code ==="
-        project.exec {
-            environment "CGO_ENABLED", "1"
-            environment "CGO_CFLAGS", "-I/usr/include/v8"
-            environment "CGO_LDFLAGS", "-lv8 -lstdc++"
-        
-            workingDir '..'
-            commandLine 'go', 'build', '-v', '-o', 'build/fider', '.'     
-        }
+    environment "CGO_ENABLED", "1"
+    environment "CGO_CFLAGS", "-I/usr/include/v8"
+    environment "CGO_LDFLAGS", "-lv8 -lstdc++"
+
+    workingDir '..'
+    commandLine 'go', 'build', '-v', '-o', 'build/fider', '.'  
+    doFirst {
+                println "=== [2/5] Compiling Source Code ==="
+
+    }
+     doLast {
+        println "Compiled application output: build/fider"
+        println "compile source code PASSED"
     }
     // =====================================
 }
