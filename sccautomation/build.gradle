@@ -47,7 +47,7 @@ task checkPrerequisites () {
                 if (process.exitValue() != 0) {
                     throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
                 } else {
-                    printf "%-10s: PASSED\n", dependency.name
+                    printf "%-10s: %s\n", dependency.name, process.text.trim()
                 }
             } catch (IOException e) {
                 throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
@@ -69,6 +69,7 @@ task resolveDependencies() {
         println "=== [1/5] Resolving Dependencies ==="
         try {
             def process = 'npm install'.execute(null, file('..'))
+            process.consumeProcessOutput(System.out, System.err)
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw new GradleException("Failed to resolve dependencies using npm.")
@@ -97,6 +98,7 @@ task compileSourceCode () {
         println "=== [2/5] Compiling Source Code ==="
         try {
             def process = goCmd.execute(null, file('..'))
+            process.consumeProcessOutput(System.out, System.err)
             process.waitFor()
             if (process.exitValue() != 0) {
                 throw new GradleException("Failed to compile source code using Go.")
