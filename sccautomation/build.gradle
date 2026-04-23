@@ -35,7 +35,6 @@ task checkPrerequisites () {
         [cmd: 'go version', winCmd: 'go version',   name: 'Go',     url: 'https://go.dev/dl/'],
         [cmd: 'node -v',    winCmd: 'node -v',      name: 'Node',   url: 'https://nodejs.org/'],
         [cmd: 'npm -v',     winCmd: 'npm -v',       name: 'npm',    url: 'https://www.npmjs.com/get-npm'],
-        [cmd: 'pnpm -v',    winCmd: 'pnpm.cmd -v',      name: 'pnpm',   url: 'https://pnpm.io/installation']
     ]
     // =====================================
     // ======== Task Implementation ========
@@ -48,7 +47,7 @@ task checkPrerequisites () {
                 if (process.exitValue() != 0) {
                     throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
                 } else {
-                    printf "${dependency.name} %-10s: PASSED\n", dependency.name
+                    printf "%-10s: PASSED\n", dependency.name
                 }
             } catch (IOException e) {
                 throw new GradleException("${dependency.name} is not installed. Please install from ${dependency.url}")
@@ -66,21 +65,21 @@ task resolveDependencies() {
     // =====================================
     // ====== Variables and Constants ======
     def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-    def pnpmCmd = isWindows ? 'pnpm.cmd install' : 'pnpm install'
+    def npmCmd = 'npm install'
     // =====================================
     // ======== Task Implementation ========
     doLast {
         println "=== [1/x] Resolving Dependencies ==="
         try {
-            def process = pnpmCmd.execute()
+            def process = npmCmd.execute()
             process.waitFor()
             if (process.exitValue() != 0) {
-                throw new GradleException("Failed to resolve dependencies using pnpm.")
+                throw new GradleException("Failed to resolve dependencies using npm.")
             } else {
                 println "Dependencies resolved successfully."
             }
         } catch (IOException e) {
-            throw new GradleException("Failed to execute pnpm command. Ensure pnpm is installed and available in PATH.")
+            throw new GradleException("Failed to execute npm command. Ensure npm is installed and available in PATH.")
         }
     }
     // =====================================
